@@ -4,6 +4,8 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import groovy.transform.AutoClone
 import groovy.util.logging.Log4j2
+import net.dietmaier.groovy.rest.utils.Config
+import net.dietmaier.groovy.rest.utils.SSLIgnore
 
 import java.util.regex.Pattern
 
@@ -19,12 +21,17 @@ import java.util.regex.Pattern
 @Log4j2
 @AutoClone
 class Resterl  {
+  static {
+    if ( Config.getSetting('ignore.sslissues')) {
+      SSLIgnore.ignoreAll()
+    }
+  }
+
   String url
   String prefix
   String path
   Map query
   def body
-
 
   // default values for request properties - may be modified before calling
   def requestProperties = ['Content-Type': 'application/json; charset=utf-8']
@@ -44,12 +51,12 @@ class Resterl  {
       new ContentHandler([
           name:     'DEFAULT (Text)',
           pattern:  ~/.*/,
-          handle:  {InputStream is -> is.text()
+          handle:  {InputStream is -> is.text
           }]),
   ]
 
-  static responseHandlers = [
-    ResponseHandlers.RETHROW
+  static responseFilters = [
+      ResponseFilter.RETHROW
   ]
 
   // get response handler according to contentType
@@ -145,7 +152,7 @@ class Resterl  {
       last.throwable = all
     }
 
-    responseHandlers.each { it(con, last) }
+    responseFilters.each { it(con, last) }
     response
   }
 

@@ -1,6 +1,6 @@
 package net.dietmaier.groovy.rest
 
-class ResponseHandlers {
+class ResponseFilter {
   static RETHROW = { con, Response last ->
     if ( last.throwable ) {
       throw new Exception("Failed calling ${last.method} on ${last.uri}", last.throwable)
