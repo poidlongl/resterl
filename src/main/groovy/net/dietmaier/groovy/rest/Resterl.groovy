@@ -27,6 +27,8 @@ class Resterl  {
 
   // default values for request properties - may be modified before calling
   def requestProperties = ['Content-Type': 'application/json; charset=utf-8']
+
+  // default response handlers - may be extended by adding new Instancef of ResponseHandler to responseHandlers-Collection
   static def responseHandlers = [
       new ResponseHandler([
           name:     'JSON',
@@ -45,24 +47,29 @@ class Resterl  {
           }]),
   ]
 
+  // get response handler according to contentType
   ResponseHandler getResponseHandler() {
-    def r = responseHandlers.find { ResponseHandler h -> h.pattern.matcher(contentType).matches() }
+    def r = responseHandlers.find { ResponseHandler h -> h.pattern.matcher(last.contentType).matches() }
     log.debug("Using response Handler: ${r.name}")
     r
   }
 
+  // keeps status info of last request
   def last = new Response()
 
+  // some helper functions
+
+  // URL-Encode String
   static String encode(String old) {
     java.net.URLEncoder.encode(old, 'UTF-8')
   }
 
+  // URL-Decode String
   static String decode(String old) {
     java.net.URLDecoder.decode(old, 'UTF-8')
   }
 
-  // helper object containing some info about the last response
-  // savely adds path tokens to url
+  // savely adds path tokens
   private appendPath(String base, String ext) {
     assert base?: "Base must not be empty"
 
@@ -88,19 +95,15 @@ class Resterl  {
   }
 
 
+  // setup
   private HttpURLConnection prepareCon(method) {
     def full = buildUrl(path, query)
-    println full
+    log.info("calling method $method on $full")
     HttpURLConnection con = new URL(full).openConnection()
     con.with {
       doOutput = true
       doInput = true
       requestMethod = method
-
-//      if ( last.headers.'ETag') {
-//        this.requestProperties['If-Match'] = last.headers.'ETag'
-//      }
-//
       this.requestProperties.each { k, v ->
         addRequestProperty(k, v)
       }
@@ -109,7 +112,8 @@ class Resterl  {
   }
 
   private def processResponse(HttpURLConnection con) {
-    // Todo: Body mabe other format than json
+    // should do some thinking about this part, may be problematic in some cases
+    def response = [:]
     last = new Response()
 
     if (body) {
@@ -121,13 +125,12 @@ class Resterl  {
       }
     }
 
-    processHeaders(con)
-
+    last.processResponse(con)
 
     try {
-      if (contentLength > 0 ) {
-        return responseHandler.handle (
-            (last.code >= HttpURLConnection.HTTP_OK && last.code <= HttpURLConnection.HTTP_BAD_REQUEST ) ?
+      if (last.contentLength > 0 ) {
+        response =  responseHandler.handle (
+            ( last.valid ) ?
                 con.inputStream :
                 con.errorStream
         )
@@ -137,19 +140,7 @@ class Resterl  {
       log.warn("Exception in response processing",all)
       last.throwable = all
     }
-    return [:]
-  }
-
-
-  private void processHeaders(HttpURLConnection con) {
-    last.code = con.responseCode
-    last.headers = con.headerFields.collectEntries { String key, Collection vals ->
-      switch (vals.size()) {
-        case 0: return [(key), '']
-        case 1: return [(key), vals.first()]
-        default: return [(key), vals]
-      }
-    }
+    response
   }
 
   def call(String method) {
@@ -169,29 +160,28 @@ class Resterl  {
     this
   }
 
-  void addResponseHandler(String name, Pattern pattern, Closure handler, int pos = 0 ) {
+  // add new response handler
+  static void addResponseHandler(String name, Pattern pattern, Closure handler, int pos = 0 ) {
     responseHandlers.add(pos, new ResponseHandler([name: name, pattern: pattern, handle: handler]))
   }
 
-  int getContentLength() {
-    def cl = last.headers.'Content-Length'
-    return cl ? cl.toInteger() : -1
-  }
-
-  String getContentType() {
-    last.headers.'Content-Type'
-  }
-
+  // builder functions
   Resterl url(String u ) { url = u; this }
   Resterl prefix(String p) { prefix = p; this }
   Resterl path(String p ) { path = p; this }
   Resterl query( Map q ) { query = q; this }
   Resterl body ( b ) { body = b; this }
 
+  // creates a new instance with extended prefix
   Resterl sub(String p) {
     this.clone().prefix(appendPath(prefix, p))
   }
+  // returns parent instance
+  Resterl parent() {
+    this.clone().prefix(prefix.tokenize('/').dropRight(1).join('/'))
+  }
 
+  // operations
   def get() { call('GET') }
   def post() { call('POST')}
   def put() { call('PUT')}
@@ -199,4 +189,3 @@ class Resterl  {
   def head() { call ( 'HEAD')}
   def options() { call ( 'OPTIONS')}
 }
-

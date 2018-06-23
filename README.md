@@ -23,7 +23,7 @@ Will be improved + documented somewhen in the future ( allthough i've currently 
 
 ```groovy
 
-// see examples.Example.groovy  
+// see examples.ThingsDB.groovy  
  
 ```
 

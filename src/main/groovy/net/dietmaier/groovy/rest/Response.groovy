@@ -21,4 +21,29 @@ class Response {
       log.warn("Exception thrown:", throwable)
     }
   }
+
+  // helper functions
+  int getContentLength() {
+    def cl = headers.'Content-Length'
+    return cl ? cl.toInteger() : -1
+  }
+
+  String getContentType() {
+    headers.'Content-Type'
+  }
+
+  void processResponse(HttpURLConnection con) {
+    code = con.responseCode
+    headers = con.headerFields.collectEntries { String key, Collection vals ->
+      switch (vals.size()) {
+        case 0: return [(key), '']
+        case 1: return [(key), vals.first()]
+        default: return [(key), vals]
+      }
+    }
+  }
+
+  boolean isValid() {
+    code >= HttpURLConnection.HTTP_OK && code <= HttpURLConnection.HTTP_BAD_REQUEST
+  }
 }
