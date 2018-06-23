@@ -22,18 +22,8 @@ Will be improved + documented somewhen in the future ( allthough i've currently 
 
 
 ```groovy
-// Create a new Database - see https://restheart.org/learn/tutorial/#create-a-database
 
-import net.dietmaier.groovy.rest.Resterl
-
-def things = new Resterl('https://localhost:8080', 'things').basicAuth(
-      'admin', 'changeig'
-    ).query([
-      description: 'some very important things'
-    ]).put()    
-// note that the baseurl, auth and the prefix are remembered in the Resterl-instance
-
-// now, we create an     
+// see examples.Example.groovy  
  
 ```
 
