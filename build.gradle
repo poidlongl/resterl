@@ -1,0 +1,20 @@
+plugins {
+    id 'groovy'
+    id 'java'
+}
+
+group 'net.dietmaier.groovy'
+version '0.1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.codehaus.groovy:groovy-all:2.4.+'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.11.0'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.11.0'
+    testCompile 'org.spockframework:spock-core:1.1-groovy-2.4'
+}
