@@ -5,50 +5,63 @@ import spock.lang.Specification
 
 class ResterlTest extends Specification {
 
-  @Shared client = initclient()
+  @Shared db = initdb()
 
-  def initclient () {
-    def cl = new Resterl(url: 'http://localhost:8080', prefix: 'testing')
-    cl.basicAuth('admin','changeit')
-    cl
+  def initdb() {
+    new Resterl(url: 'http://localhost:8080', prefix: 'testing').
+        basicAuth('admin','changeit')
   }
 
-  def "Put"() {
+  def "createDb"() {
     when:
-      client.put()
+      db.put()
     then:
-      [ 200, 201 ].contains( client.last.code )
+      [ 200, 201 ].contains( db.last.code )
   }
 
-  def "Get"() {
+  def "createCollection"() {
     when:
-      def result = client.get()
-      println result
-      client.last.dumpparams()
+      def collection = db.sub('colname')
+      collection.put()
     then:
-      1==1
+      collection.last.valid
 
   }
 
-  def "Post"() {
+  def "createDocument"() {
     when:
-      client.put('mycol', [:], ['unpatched': 'yes'])
-      def result = client.get('mycol')
+      db.path('colname').body( [ name: 'fred', profession: 'bronto crane operator' ] ).post()
     then:
-      result.unpatched == 'yes'
+      db.last.valid
   }
 
-  def "Patch"() {
-    // patch is not supported by HTTPUrlConnection, has to be workarounded ...
-/*    when:
-      client.patch('mycol',[:], ['patched': 'yes'])
-      client.last.dumpparams()
-      def result =  client.get('mycol')
+  def "createDocuments"() {
+    when:
+    db.path('colname').body( [
+        [ name: 'barney', profession: 'top secret' ],
+        [ name: 'ed', profession: 'handyman']
+    ]).post()
     then:
-      result.patched == 'yes'
-*/
+    db.last.valid
   }
 
-  def "Delete"() {
+  def "deleteCollection"() {
+    when:
+      def col = db.get()._embedded.find {it._id == 'colname'}
+      if ( col ) {
+        db.requestProperties.'If-Match' = col._etag.'$oid'
+        db.path('colname').delete()
+      }
+    then:
+      db.last.valid
+  }
+
+  def "deleteDB"() {
+    when:
+      db.get()
+      db.requestProperties.'If-Match' = db.last.headers.ETag
+      db.delete()
+    then:
+      db.last.valid
   }
 }

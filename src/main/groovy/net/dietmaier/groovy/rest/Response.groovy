@@ -11,6 +11,8 @@ class Response {
   Map headers = [:]
   Throwable throwable
   def data
+  def method
+  def uri
 
   void dumpparams() {
     log.info "Response Code: $code"
@@ -45,5 +47,9 @@ class Response {
 
   boolean isValid() {
     code >= HttpURLConnection.HTTP_OK && code <= HttpURLConnection.HTTP_BAD_REQUEST
+  }
+
+  boolean isNotFound() {
+    return code == HttpURLConnection.HTTP_NOT_FOUND
   }
 }

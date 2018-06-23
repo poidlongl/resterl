@@ -25,31 +25,36 @@ class Resterl  {
   Map query
   def body
 
+
   // default values for request properties - may be modified before calling
   def requestProperties = ['Content-Type': 'application/json; charset=utf-8']
 
-  // default response handlers - may be extended by adding new Instancef of ResponseHandler to responseHandlers-Collection
-  static def responseHandlers = [
-      new ResponseHandler([
+  // default content handlers - may be extended by adding new Instancef of ContentHandler to contentHandlers-Collection
+  static contentHandlers = [
+      new ContentHandler([
           name:     'JSON',
           pattern:  ~/.*json.*/,
           handle:  {InputStream is -> new JsonSlurper().parse(is)
           }]),
-      new ResponseHandler([
+      new ContentHandler([
           name:     'XML',
           pattern:  ~/.*xml.*/,
           handle:  {InputStream is -> new JsonSlurper().parse(is)
           }]),
-      new ResponseHandler([
+      new ContentHandler([
           name:     'DEFAULT (Text)',
           pattern:  ~/.*/,
           handle:  {InputStream is -> is.text()
           }]),
   ]
 
+  static responseHandlers = [
+    ResponseHandlers.RETHROW
+  ]
+
   // get response handler according to contentType
-  ResponseHandler getResponseHandler() {
-    def r = responseHandlers.find { ResponseHandler h -> h.pattern.matcher(last.contentType).matches() }
+  ContentHandler getContentHandler() {
+    def r = contentHandlers.find { ContentHandler h -> h.pattern.matcher(last.contentType).matches() }
     log.debug("Using response Handler: ${r.name}")
     r
   }
@@ -61,16 +66,16 @@ class Resterl  {
 
   // URL-Encode String
   static String encode(String old) {
-    java.net.URLEncoder.encode(old, 'UTF-8')
+    URLEncoder.encode(old, 'UTF-8')
   }
 
   // URL-Decode String
   static String decode(String old) {
-    java.net.URLDecoder.decode(old, 'UTF-8')
+    URLDecoder.decode(old, 'UTF-8')
   }
 
   // savely adds path tokens
-  private appendPath(String base, String ext) {
+  private static appendPath(String base, String ext) {
     assert base?: "Base must not be empty"
 
     def r = base - ~/\/+$/
@@ -99,7 +104,8 @@ class Resterl  {
   private HttpURLConnection prepareCon(method) {
     def full = buildUrl(path, query)
     log.info("calling method $method on $full")
-    HttpURLConnection con = new URL(full).openConnection()
+    last = new Response([method: method, uri: full ])
+    HttpURLConnection con = (HttpURLConnection) new URL(full).openConnection()
     con.with {
       doOutput = true
       doInput = true
@@ -114,8 +120,6 @@ class Resterl  {
   private def processResponse(HttpURLConnection con) {
     // should do some thinking about this part, may be problematic in some cases
     def response = [:]
-    last = new Response()
-
     if (body) {
       try {
         con.outputStream << JsonOutput.toJson(body)
@@ -129,7 +133,7 @@ class Resterl  {
 
     try {
       if (last.contentLength > 0 ) {
-        response =  responseHandler.handle (
+        response =  contentHandler.handle (
             ( last.valid ) ?
                 con.inputStream :
                 con.errorStream
@@ -140,6 +144,8 @@ class Resterl  {
       log.warn("Exception in response processing",all)
       last.throwable = all
     }
+
+    responseHandlers.each { it(con, last) }
     response
   }
 
@@ -156,13 +162,13 @@ class Resterl  {
   // public api from here
   Resterl basicAuth(String user, String password) {
     String auth = "$user:$password".bytes.encodeBase64().toString()
-    requestProperties['Authorization'] = "Basic $auth"
+    requestProperties.Authorization = "Basic $auth"
     this
   }
 
   // add new response handler
   static void addResponseHandler(String name, Pattern pattern, Closure handler, int pos = 0 ) {
-    responseHandlers.add(pos, new ResponseHandler([name: name, pattern: pattern, handle: handler]))
+    contentHandlers.add(pos, new ContentHandler([name: name, pattern: pattern, handle: handler]))
   }
 
   // builder functions

@@ -19,13 +19,13 @@ assert [
   201  // returned if DB is newly created
 ].contains(things.last.code) : "DB-Creation failed"
 
-// create first collection
+// sub will build a new instance based on new path
 def colored = things.sub('colored')
 
 // get status of colored
 colored.get()
 // delete it of it exists
-if ( colored.last.valid ) {
+if ( colored.last.valid) {
   RestheartHelper.setMatch(colored)
   colored.delete() // delete if exists
 }
@@ -55,6 +55,7 @@ def id = RestheartHelper.idOf(ybr)
 ybr.color = 'yellow'
 
 // upsert document - update would need PATCH - Support
+// note that path doesnt create a new instance of resterl ( as sub would do ) K
 colored.path(id).body(
     RestheartHelper.sanitized(ybr)
 ).put()
